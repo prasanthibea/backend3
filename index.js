@@ -1,94 +1,97 @@
-'use strict'
+
 const express = require('express')
-const httpErrors = require('http-errors')
-const path = require('path')
-const ejs = require('ejs')
-const pino = require('pino')
-const pinoHttp = require('pino-http')
+const bodyParser = require("body-parser")
+const mysql = require("mysql2")
+const cors = require("cors")
 
-module.exports = function main (options, cb) {
-  // Set default options
-  const ready = cb || function () {}
-  const opts = Object.assign({
-    // Default options
-  }, options)
+const app = express()
 
-  const logger = pino()
+app.use(cors())
+app.use(express.json())
+app.use(bodyParser.urlencoded({ extended: true }))
 
-  // Server state
-  let server
-  let serverStarted = false
-  let serverClosing = false
+app.listen(4000, () => {
+  console.log("Server is running on port 4000");
+})
 
-  // Setup error handling
-  function unhandledError (err) {
-    // Log the errors
-    logger.error(err)
+const db = mysql.createPool({
+  host: "localhost",
+  user: "root",
+  password: "FRACAS@22",
+  database: "backend3",
 
-    // Only clean up once
-    if (serverClosing) {
-      return
-    }
-    serverClosing = true
+});
 
-    // If server has started, close it down
-    if (serverStarted) {
-      server.close(function () {
-        process.exit(1)
-      })
-    }
+
+/* // Establish a connection with the database and use the tables:
+db.getConnection(function (err, connection) {
+  if (err) {
+    console.error('Error connecting to the database', err); // Fixed typo: console.err -> console.error
+    return;
   }
-  process.on('uncaughtException', unhandledError)
-  process.on('unhandledRejection', unhandledError)
 
-  // Create the express app
-  const app = express()
+  connection.release(); // Release the connection back to the pool when done
+});
+ */
 
-  // Template engine
-  app.engine('html', ejs.renderFile)
-  app.set('views', path.join(__dirname, 'views'))
-  app.set('view engine', 'html')
-  
-  // Common middleware
-  // app.use(/* ... */)
-  app.use(pinoHttp({ logger }))
-      
-  // Register routes
-  // @NOTE: require here because this ensures that even syntax errors
-  // or other startup related errors are caught logged and debuggable.
-  // Alternativly, you could setup external log handling for startup
-  // errors and handle them outside the node process.  I find this is
-  // better because it works out of the box even in local development.
-  require('./routes')(app, opts)
+db.getConnection(function (err, connection) {
+  if (err) {
+    console.err("Error connecting to the database", err);
+    return;
+  } else {
+    console.log("good")
+    return;
+  }
+})
 
-  // Common error handlers
-  app.use(function fourOhFourHandler (req, res, next) {
-    next(httpErrors(404, `Route not found: ${req.url}`))
-  })
-  app.use(function fiveHundredHandler (err, req, res, next) {
-    if (err.status >= 500) {
-      logger.error(err)
+app.get("/teacher", (req, res) => {
+
+  const result = { message: 'hai' }
+
+  res.status(200).json(result);
+})
+
+app.get("/student", (req, res) => {
+  const sql = " SELECT id,student,father FROM student "
+  db.query(sql, (error, result) => {
+    if (error) {
+      res.status(500).json(error)
+    } else {
+      res.status(200).json(error)
     }
-    res.locals.name = 'backend3'
-    res.locals.error = err
-    res.status(err.status || 500).render('error')
-  })
-  
-  // Start server
-  server = app.listen(opts.port, opts.host, function (err) {
-    if (err) {
-      return ready(err, app, server)
+  });
+
+  //res.send(result);
+
+  return
+  const result = { message: 'hello' }
+  res.status(200).json(result);
+})
+
+
+app.post("/student", (req, res) => {
+
+  const { id, student, father, phone } = req.body
+  const sql = " INSERT INTO student (id, student, father, phone ) VALUES (?, ?, ?, ?) "
+  db.query(sql, [id, student, father, phone], (error, result) => {
+    if (error) {
+      res.status(500).json(error)
+    } else {
+      res.status(200).json(error)
     }
+  });
 
-    // If some other error means we should close
-    if (serverClosing) {
-      return ready(new Error('Server was closed before it could start'))
-    }
+  //res.send(result);
+  //console.log(email);
+  //res.status(200).json(" email ");
 
-    serverStarted = true
-    const addr = server.address()
-    logger.info(`Started at ${opts.host || addr.host || 'localhost'}:${addr.port}`)
-    ready(err, app, server)
-  })
-}
 
+  /* res.status(200).json(
+    { student, father, phone }
+  ) */
+
+
+
+
+
+})
